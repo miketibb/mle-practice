@@ -30,12 +30,19 @@ def sample_event():
 
 
 class TestDatabase:
+    # In tests/test_db.py, replace the test_create_tables method with:
+
     def test_create_tables(self, test_db):
         """Test that tables are created successfully"""
+        from sqlalchemy import inspect
+
+        inspector = inspect(test_db.engine)
+        table_names = inspector.get_table_names()
+
         # Tables should exist after initialization
-        assert test_db.engine.has_table("events")
-        assert test_db.engine.has_table("price_snapshots")
-        assert test_db.engine.has_table("user_interests")
+        assert "events" in table_names
+        assert "price_snapshots" in table_names
+        assert "user_interests" in table_names
 
     def test_add_event(self, test_db, sample_event):
         """Test adding an event to database"""
