@@ -7,7 +7,7 @@ class DataCollector:
         self.api_client = api_client
         self.database = database
 
-    def store_event(self, event_data: Dict[str, Any]) -> bool:
+    def store_event(self, event_data: Dict[str, Any]) -> str:
         """
         Store event and its price snapshot in the database
 
@@ -19,6 +19,15 @@ class DataCollector:
         with self.database.get_session() as session:
             # Check if event already exists
             event = session.query(Event).filter_by(id=event_id).first()
+
+            # Add new PriceSnapshot
+            snapshot = PriceSnapshot(
+                event_id=event_id,
+                min_price=event_data.get("min_price"),
+                max_price=event_data.get("max_price"),
+                currency=event_data.get("currency", "USD"),
+            )
+            session.add(snapshot)
 
             if not event:
                 # Create new Event
@@ -33,14 +42,47 @@ class DataCollector:
                     url=event_data.get("url"),
                 )
                 session.add(event)
+                return "created"
 
-            # Add new PriceSnapshot
-            snapshot = PriceSnapshot(
-                event_id=event_id,
-                min_price=event_data.get("min_price"),
-                max_price=event_data.get("max_price"),
-                currency=event_data.get("currency", "USD"),
-            )
-            session.add(snapshot)
+            else:
+                return "updated"
 
-        return True
+    def collect_events(self, **search_params) -> Dict:
+        """Fetch events from API and store them"""
+
+        # Call API and count results
+        events = self.api_client.search_events(**search_params)
+        fetched = len(events)
+
+        # Initialize counters
+        created = 0
+        updated = 0
+        errors = []
+
+        # Loop through events
+        for event in events:
+            try:
+                # Parse and store
+                parsed = self.api_client.parse_event_data(event)
+                result = self.store_event(parsed)
+
+                if result == "created":
+                    created += 1
+                elif result == "updated":
+                    updated += 1
+
+            except Exception as e:
+                errors.append(
+                    {
+                        "event_id": event.get("id", "unknown"),
+                        "event_name": event.get("name", "Unknown"),
+                        "error": str(e),
+                    }
+                )
+
+        return {
+            "fetched": fetched,
+            "created": created,
+            "updated": updated,
+            "errors": errors,
+        }
