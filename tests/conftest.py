@@ -51,3 +51,21 @@ def sample_raw_event():
         }
 
     return _make_event
+
+
+@pytest.fixture
+def sample_event():
+    """Sample event for database testing"""
+    from datetime import datetime
+    from src.db.models import Event
+
+    return Event(
+        id="test_event_123",
+        name="Test Concert",
+        event_type="Music/Rock",
+        start_date=datetime(2024, 12, 31, 20, 0, 0),
+        venue_name="Test Venue",
+        city="Los Angeles",
+        state="CA",
+        url="https://example.com/event",
+    )
